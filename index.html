@@ -95,17 +95,17 @@
             background-color: #218838;
         }
 
-        .color-option, .gradient-option {
+        .color-option, .gradient-option, .shadow-option {
             display: flex;
             align-items: center;
             margin-bottom: 10px;
         }
-        .color-option label, .gradient-option label {
+        .color-option label, .gradient-option label, .shadow-option label {
             margin-right: 10px;
             margin-bottom: 0;
-            flex-shrink: 0; /* ラベルが縮まないようにする */
+            flex-shrink: 0;
         }
-        .color-option input[type="color"], .gradient-option input[type="color"] {
+        .color-option input[type="color"], .gradient-option input[type="color"], .shadow-option input[type="color"] {
             width: 40px;
             height: 40px;
             padding: 0;
@@ -153,14 +153,28 @@
         <label for="gradientStop2">グラデーション下部停止位置 (0.0 - 1.0):</label>
         <input type="number" id="gradientStop2" value="1.0" min="0" max="1" step="0.05">
 
-        <label for="shadowOffsetX">シャドウのXオフセット (px):</label>
+        <hr style="border: 0; height: 1px; background: #ddd; margin: 20px 0;">
+
+        <h3>シャドウ設定</h3>
+        
+        <label for="shadowOffsetX">Xオフセット (px):</label>
         <input type="number" id="shadowOffsetX" value="0">
 
-        <label for="shadowOffsetY">シャドウのYオフセット (px):</label>
+        <label for="shadowOffsetY">Yオフセット (px):</label>
         <input type="number" id="shadowOffsetY" value="6">
 
-        <label for="shadowBlur">シャドウのぼかし (px):</label>
+        <label for="shadowBlur">ぼかし (px):</label>
         <input type="number" id="shadowBlur" value="10" min="0">
+        
+        <div class="shadow-option">
+            <label for="shadowColor">シャドウの色:</label>
+            <input type="color" id="shadowColor" value="#000000">
+        </div>
+
+        <label for="shadowOpacity">シャドウの不透明度 (0.0 - 1.0):</label>
+        <input type="number" id="shadowOpacity" value="1.0" min="0" max="1" step="0.05">
+
+        <hr style="border: 0; height: 1px; background: #ddd; margin: 20px 0;">
 
         <button id="generateButton">PNGを生成</button>
     </div>
@@ -172,44 +186,61 @@
     </div>
 
     <script>
+        // DOM要素の取得
         const textInput = document.getElementById('textInput');
         const fontSizeInput = document.getElementById('fontSize');
         const fontFamilySelect = document.getElementById('fontFamily');
         const outlineWidthInput = document.getElementById('outlineWidth');
-        const outlineColorInput = document.getElementById('outlineColor'); // 追加
+        const outlineColorInput = document.getElementById('outlineColor');
         const gradientColor1Input = document.getElementById('gradientColor1');
         const gradientColor2Input = document.getElementById('gradientColor2');
-        const gradientStop1Input = document.getElementById('gradientStop1'); // 追加
-        const gradientStop2Input = document.getElementById('gradientStop2'); // 追加
+        const gradientStop1Input = document.getElementById('gradientStop1');
+        const gradientStop2Input = document.getElementById('gradientStop2');
         const shadowOffsetXInput = document.getElementById('shadowOffsetX');
         const shadowOffsetYInput = document.getElementById('shadowOffsetY');
         const shadowBlurInput = document.getElementById('shadowBlur');
+        // --- 新しく追加・変更した要素 ---
+        const shadowColorInput = document.getElementById('shadowColor');
+        const shadowOpacityInput = document.getElementById('shadowOpacity');
+        // ---------------------------------
         const generateButton = document.getElementById('generateButton');
         const previewCanvas = document.getElementById('previewCanvas');
         const downloadLink = document.getElementById('downloadLink');
         const ctx = previewCanvas.getContext('2d');
+
+        // HEXカラーコードをRGBA形式に変換するヘルパー関数
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.substring(1, 3), 16);
+            const g = parseInt(hex.substring(3, 5), 16);
+            const b = parseInt(hex.substring(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
 
         function drawText() {
             const text = textInput.value;
             const fontSize = parseInt(fontSizeInput.value);
             const fontFamily = fontFamilySelect.value;
             const outlineWidth = parseInt(outlineWidthInput.value);
-            const outlineColor = outlineColorInput.value; // 取得
+            const outlineColor = outlineColorInput.value;
             const gradientColor1 = gradientColor1Input.value;
             const gradientColor2 = gradientColor2Input.value;
-            const gradientStop1 = parseFloat(gradientStop1Input.value); // 取得
-            const gradientStop2 = parseFloat(gradientStop2Input.value); // 取得
+            const gradientStop1 = parseFloat(gradientStop1Input.value);
+            const gradientStop2 = parseFloat(gradientStop2Input.value);
             const shadowOffsetX = parseInt(shadowOffsetXInput.value);
             const shadowOffsetY = parseInt(shadowOffsetYInput.value);
             const shadowBlur = parseInt(shadowBlurInput.value);
+            // --- 新しく取得する値 ---
+            const shadowHexColor = shadowColorInput.value;
+            const shadowOpacity = parseFloat(shadowOpacityInput.value);
+            // ------------------------
 
             // Canvasのサイズをテキストに合わせて調整（余裕を持たせる）
             ctx.font = `${fontSize}px ${fontFamily}`;
             const textMetrics = ctx.measureText(text);
             const textWidth = textMetrics.width;
-            const textHeight = fontSize * 1.5; // 適当な高さの目安
+            const textHeight = fontSize * 1.5;
 
-            const padding = outlineWidth * 2 + Math.max(Math.abs(shadowOffsetX), Math.abs(shadowOffsetY)) + shadowBlur * 2 + 20; // 余裕を持たせる
+            const padding = outlineWidth * 2 + Math.max(Math.abs(shadowOffsetX), Math.abs(shadowOffsetY)) + shadowBlur * 2 + 20;
             previewCanvas.width = textWidth + padding * 2;
             previewCanvas.height = textHeight + padding * 2;
 
@@ -222,29 +253,36 @@
             const centerX = previewCanvas.width / 2;
             const centerY = previewCanvas.height / 2;
 
-            // シャドウ
-            ctx.shadowColor = 'black';
+            // グラデーションの作成
+            const gradient = ctx.createLinearGradient(0, centerY - fontSize / 2, 0, centerY + fontSize / 2);
+            gradient.addColorStop(gradientStop1, gradientColor1);
+            gradient.addColorStop(gradientStop2, gradientColor2);
+
+            // 縁取りの設定
+            ctx.strokeStyle = outlineColor;
+            ctx.lineWidth = outlineWidth;
+            ctx.lineJoin = 'round';
+            ctx.miterLimit = 2;
+
+            // 1. 縁取り（アウトライン）を描画: シャドウを無効化して描画
+            ctx.shadowColor = 'rgba(0,0,0,0)';
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.shadowBlur = 0;
+            ctx.strokeText(text, centerX, centerY);
+
+            // 2. シャドウを設定: 塗りつぶし（グラデーション）にのみ適用する
+            // ★不透明度を反映したRGBAシャドウカラーを生成
+            ctx.shadowColor = hexToRgba(shadowHexColor, shadowOpacity); 
             ctx.shadowOffsetX = shadowOffsetX;
             ctx.shadowOffsetY = shadowOffsetY;
             ctx.shadowBlur = shadowBlur;
 
-            // グラデーションの作成
-            const gradient = ctx.createLinearGradient(0, centerY - fontSize / 2, 0, centerY + fontSize / 2);
-            gradient.addColorStop(gradientStop1, gradientColor1); // 上部の色と停止位置
-            gradient.addColorStop(gradientStop2, gradientColor2); // 下部の色と停止位置
+            // 3. 塗りつぶし（グラデーション）を描画: シャドウが背後に落ちる
             ctx.fillStyle = gradient;
-
-            // 縁取り
-            ctx.strokeStyle = outlineColor; // 縁取りの色を適用
-            ctx.lineWidth = outlineWidth;
-            ctx.lineJoin = 'round'; // 角を丸くする
-            ctx.miterLimit = 2; // miterLimitを調整して、角の尖りすぎを防ぐ
-
-            // シャドウと縁取りを先に描画
-            ctx.strokeText(text, centerX, centerY);
             ctx.fillText(text, centerX, centerY);
 
-            // シャドウをリセットして、ダウンロード用の画像に影響が出ないようにする
+            // 4. シャドウをリセット（ダウンロード用画像に影響が出ないように）
             ctx.shadowColor = 'rgba(0,0,0,0)';
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 0;
@@ -260,14 +298,18 @@
         fontSizeInput.addEventListener('change', drawText);
         fontFamilySelect.addEventListener('change', drawText);
         outlineWidthInput.addEventListener('change', drawText);
-        outlineColorInput.addEventListener('input', drawText); // 追加
+        outlineColorInput.addEventListener('input', drawText);
         gradientColor1Input.addEventListener('input', drawText);
         gradientColor2Input.addEventListener('input', drawText);
-        gradientStop1Input.addEventListener('change', drawText); // 追加
-        gradientStop2Input.addEventListener('change', drawText); // 追加
+        gradientStop1Input.addEventListener('change', drawText);
+        gradientStop2Input.addEventListener('change', drawText);
         shadowOffsetXInput.addEventListener('change', drawText);
         shadowOffsetYInput.addEventListener('change', drawText);
         shadowBlurInput.addEventListener('change', drawText);
+        // --- 新しく追加したイベントリスナー ---
+        shadowColorInput.addEventListener('input', drawText);
+        shadowOpacityInput.addEventListener('change', drawText);
+        // ------------------------------------
         generateButton.addEventListener('click', drawText);
 
         // ページロード時に一度描画
