@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>驚愕サムネジェネレーター</title>
+    <style>
+        @font-face {
+            font-family: 'GenEiPopR';
+            src: url('https://cdn.jsdelivr.net/gh/yasu975/GenEiPopR/GenEiPopR.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        #controls {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        #controls label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        #controls input[type="text"],
+        #controls input[type="number"],
+        #controls select {
+            width: calc(100% - 20px);
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        #controls button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #controls button:hover {
+            background-color: #0056b3;
+        }
+
+        #output {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        #previewCanvas {
+            border: 1px solid #ccc;
+            background-color: #eee;
+            margin-bottom: 15px;
+            max-width: 100%;
+            height: auto;
+        }
+
+        #downloadLink {
+            display: none; /* 初期は非表示 */
+            margin-top: 15px;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 16px;
+        }
+
+        #downloadLink:hover {
+            background-color: #218838;
+        }
+
+        .color-option, .gradient-option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .color-option label, .gradient-option label {
+            margin-right: 10px;
+            margin-bottom: 0;
+            flex-shrink: 0; /* ラベルが縮まないようにする */
+        }
+        .color-option input[type="color"], .gradient-option input[type="color"] {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>驚愕サムネジェネレーター</h1>
+
+    <div id="controls">
+        <label for="textInput">表示する文字:</label>
+        <input type="text" id="textInput" value="世界が驚愕!!日本の最新技術がヤバすぎる!!">
+
+        <label for="fontSize">フォントサイズ (px):</label>
+        <input type="number" id="fontSize" value="80" min="10">
+
+        <label for="fontFamily">フォント:</label>
+        <select id="fontFamily">
+            <option value="HGP創英角ポップ体, 'HGP Soei Kaku Poptai', 'GenEiPopR', sans-serif">HGP創英角ポップ体 (インストール済みの場合)</option>
+            <option value="'GenEiPopR', sans-serif">源暎ぽっぷる (Webフォント)</option>
+        </select>
+
+        <label for="outlineWidth">縁取りの太さ (px):</label>
+        <input type="number" id="outlineWidth" value="8" min="0">
+
+        <div class="color-option">
+            <label for="outlineColor">縁取りの色:</label>
+            <input type="color" id="outlineColor" value="#ffffff">
+        </div>
+
+        <div class="gradient-option">
+            <label for="gradientColor1">グラデーション上部色:</label>
+            <input type="color" id="gradientColor1" value="#ff0000">
+        </div>
+        <div class="gradient-option">
+            <label for="gradientColor2">グラデーション下部色:</label>
+            <input type="color" id="gradientColor2" value="#770000">
+        </div>
+
+        <label for="gradientStop1">グラデーション上部停止位置 (0.0 - 1.0):</label>
+        <input type="number" id="gradientStop1" value="0.0" min="0" max="1" step="0.05">
+
+        <label for="gradientStop2">グラデーション下部停止位置 (0.0 - 1.0):</label>
+        <input type="number" id="gradientStop2" value="1.0" min="0" max="1" step="0.05">
+
+        <label for="shadowOffsetX">シャドウのXオフセット (px):</label>
+        <input type="number" id="shadowOffsetX" value="0">
+
+        <label for="shadowOffsetY">シャドウのYオフセット (px):</label>
+        <input type="number" id="shadowOffsetY" value="6">
+
+        <label for="shadowBlur">シャドウのぼかし (px):</label>
+        <input type="number" id="shadowBlur" value="10" min="0">
+
+        <button id="generateButton">PNGを生成</button>
+    </div>
+
+    <div id="output">
+        <h2>プレビュー</h2>
+        <canvas id="previewCanvas"></canvas>
+        <a id="downloadLink" download="text_image.png">画像をダウンロード</a>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const fontSizeInput = document.getElementById('fontSize');
+        const fontFamilySelect = document.getElementById('fontFamily');
+        const outlineWidthInput = document.getElementById('outlineWidth');
+        const outlineColorInput = document.getElementById('outlineColor'); // 追加
+        const gradientColor1Input = document.getElementById('gradientColor1');
+        const gradientColor2Input = document.getElementById('gradientColor2');
+        const gradientStop1Input = document.getElementById('gradientStop1'); // 追加
+        const gradientStop2Input = document.getElementById('gradientStop2'); // 追加
+        const shadowOffsetXInput = document.getElementById('shadowOffsetX');
+        const shadowOffsetYInput = document.getElementById('shadowOffsetY');
+        const shadowBlurInput = document.getElementById('shadowBlur');
+        const generateButton = document.getElementById('generateButton');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const downloadLink = document.getElementById('downloadLink');
+        const ctx = previewCanvas.getContext('2d');
+
+        function drawText() {
+            const text = textInput.value;
+            const fontSize = parseInt(fontSizeInput.value);
+            const fontFamily = fontFamilySelect.value;
+            const outlineWidth = parseInt(outlineWidthInput.value);
+            const outlineColor = outlineColorInput.value; // 取得
+            const gradientColor1 = gradientColor1Input.value;
+            const gradientColor2 = gradientColor2Input.value;
+            const gradientStop1 = parseFloat(gradientStop1Input.value); // 取得
+            const gradientStop2 = parseFloat(gradientStop2Input.value); // 取得
+            const shadowOffsetX = parseInt(shadowOffsetXInput.value);
+            const shadowOffsetY = parseInt(shadowOffsetYInput.value);
+            const shadowBlur = parseInt(shadowBlurInput.value);
+
+            // Canvasのサイズをテキストに合わせて調整（余裕を持たせる）
+            ctx.font = `${fontSize}px ${fontFamily}`;
+            const textMetrics = ctx.measureText(text);
+            const textWidth = textMetrics.width;
+            const textHeight = fontSize * 1.5; // 適当な高さの目安
+
+            const padding = outlineWidth * 2 + Math.max(Math.abs(shadowOffsetX), Math.abs(shadowOffsetY)) + shadowBlur * 2 + 20; // 余裕を持たせる
+            previewCanvas.width = textWidth + padding * 2;
+            previewCanvas.height = textHeight + padding * 2;
+
+            ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            ctx.font = `${fontSize}px ${fontFamily}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // 描画の中心を計算
+            const centerX = previewCanvas.width / 2;
+            const centerY = previewCanvas.height / 2;
+
+            // シャドウ
+            ctx.shadowColor = 'black';
+            ctx.shadowOffsetX = shadowOffsetX;
+            ctx.shadowOffsetY = shadowOffsetY;
+            ctx.shadowBlur = shadowBlur;
+
+            // グラデーションの作成
+            const gradient = ctx.createLinearGradient(0, centerY - fontSize / 2, 0, centerY + fontSize / 2);
+            gradient.addColorStop(gradientStop1, gradientColor1); // 上部の色と停止位置
+            gradient.addColorStop(gradientStop2, gradientColor2); // 下部の色と停止位置
+            ctx.fillStyle = gradient;
+
+            // 縁取り
+            ctx.strokeStyle = outlineColor; // 縁取りの色を適用
+            ctx.lineWidth = outlineWidth;
+            ctx.lineJoin = 'round'; // 角を丸くする
+            ctx.miterLimit = 2; // miterLimitを調整して、角の尖りすぎを防ぐ
+
+            // シャドウと縁取りを先に描画
+            ctx.strokeText(text, centerX, centerY);
+            ctx.fillText(text, centerX, centerY);
+
+            // シャドウをリセットして、ダウンロード用の画像に影響が出ないようにする
+            ctx.shadowColor = 'rgba(0,0,0,0)';
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.shadowBlur = 0;
+
+            // PNGダウンロードリンクを更新
+            downloadLink.href = previewCanvas.toDataURL('image/png');
+            downloadLink.style.display = 'block';
+        }
+
+        // イベントリスナー
+        textInput.addEventListener('input', drawText);
+        fontSizeInput.addEventListener('change', drawText);
+        fontFamilySelect.addEventListener('change', drawText);
+        outlineWidthInput.addEventListener('change', drawText);
+        outlineColorInput.addEventListener('input', drawText); // 追加
+        gradientColor1Input.addEventListener('input', drawText);
+        gradientColor2Input.addEventListener('input', drawText);
+        gradientStop1Input.addEventListener('change', drawText); // 追加
+        gradientStop2Input.addEventListener('change', drawText); // 追加
+        shadowOffsetXInput.addEventListener('change', drawText);
+        shadowOffsetYInput.addEventListener('change', drawText);
+        shadowBlurInput.addEventListener('change', drawText);
+        generateButton.addEventListener('click', drawText);
+
+        // ページロード時に一度描画
+        drawText();
+    </script>
+</body>
+</html>
