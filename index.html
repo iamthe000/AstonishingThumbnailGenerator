@@ -199,10 +199,8 @@
         const shadowOffsetXInput = document.getElementById('shadowOffsetX');
         const shadowOffsetYInput = document.getElementById('shadowOffsetY');
         const shadowBlurInput = document.getElementById('shadowBlur');
-        // --- 新しく追加・変更した要素 ---
         const shadowColorInput = document.getElementById('shadowColor');
         const shadowOpacityInput = document.getElementById('shadowOpacity');
-        // ---------------------------------
         const generateButton = document.getElementById('generateButton');
         const previewCanvas = document.getElementById('previewCanvas');
         const downloadLink = document.getElementById('downloadLink');
@@ -229,10 +227,8 @@
             const shadowOffsetX = parseInt(shadowOffsetXInput.value);
             const shadowOffsetY = parseInt(shadowOffsetYInput.value);
             const shadowBlur = parseInt(shadowBlurInput.value);
-            // --- 新しく取得する値 ---
             const shadowHexColor = shadowColorInput.value;
             const shadowOpacity = parseFloat(shadowOpacityInput.value);
-            // ------------------------
 
             // Canvasのサイズをテキストに合わせて調整（余裕を持たせる）
             ctx.font = `${fontSize}px ${fontFamily}`;
@@ -264,29 +260,28 @@
             ctx.lineJoin = 'round';
             ctx.miterLimit = 2;
 
-            // 1. 縁取り（アウトライン）を描画: シャドウを無効化して描画
-            ctx.shadowColor = 'rgba(0,0,0,0)';
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
-            ctx.shadowBlur = 0;
-            ctx.strokeText(text, centerX, centerY);
-
-            // 2. シャドウを設定: 塗りつぶし（グラデーション）にのみ適用する
-            // ★不透明度を反映したRGBAシャドウカラーを生成
+            // 1. シャドウのみを先に描画する
             ctx.shadowColor = hexToRgba(shadowHexColor, shadowOpacity); 
             ctx.shadowOffsetX = shadowOffsetX;
             ctx.shadowOffsetY = shadowOffsetY;
             ctx.shadowBlur = shadowBlur;
 
-            // 3. 塗りつぶし（グラデーション）を描画: シャドウが背後に落ちる
-            ctx.fillStyle = gradient;
+            // シャドウを落とすために、一時的に黒で塗りつぶす
+            ctx.fillStyle = 'black'; 
             ctx.fillText(text, centerX, centerY);
-
-            // 4. シャドウをリセット（ダウンロード用画像に影響が出ないように）
+            
+            // 2. シャドウをリセットする（以降の描画にはシャドウを適用しない）
             ctx.shadowColor = 'rgba(0,0,0,0)';
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 0;
             ctx.shadowBlur = 0;
+
+            // 3. 縁取り（アウトライン）を描画
+            ctx.strokeText(text, centerX, centerY);
+
+            // 4. 塗りつぶし（グラデーション）を描画
+            ctx.fillStyle = gradient;
+            ctx.fillText(text, centerX, centerY);
 
             // PNGダウンロードリンクを更新
             downloadLink.href = previewCanvas.toDataURL('image/png');
@@ -306,10 +301,8 @@
         shadowOffsetXInput.addEventListener('change', drawText);
         shadowOffsetYInput.addEventListener('change', drawText);
         shadowBlurInput.addEventListener('change', drawText);
-        // --- 新しく追加したイベントリスナー ---
         shadowColorInput.addEventListener('input', drawText);
         shadowOpacityInput.addEventListener('change', drawText);
-        // ------------------------------------
         generateButton.addEventListener('click', drawText);
 
         // ページロード時に一度描画
